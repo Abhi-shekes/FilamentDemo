@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; 
+import 'package:frontend/services/provider_config.dart';
 import 'dart:convert';
 
 import '../ip.dart';
 import 'detection_type_page.dart';
 import 'alerts_page.dart';
+ import 'dart:typed_data';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:image/image.dart' as img; // Use for image decoding
+import 'package:provider/provider.dart';
 
 class ConfigPanel extends StatefulWidget {
   const ConfigPanel({super.key});
@@ -24,51 +28,28 @@ class _ConfigPanelState extends State<ConfigPanel> {
   bool isPlaying = false;
   String errorMessage = '';
 
-  void startAnalysis() async {
-    if (_validateInputs()) {
-      setState(() {
-        isPlaying = true;
-        errorMessage = ''; 
-      });
+WebSocketChannel? channel;
 
-      final requestBody = {
-        'source': selectedSource == 'webcam' ? 'webcam' : urlController.text,
-        'detectionType': selectedDetection,
-        'alertSMS': alertSMS ? smsController.text : '',
-        'alertEmail': alertEmail ? emailController.text : '',
-      };
+  void startAnalysis() {
+    channel = WebSocketChannel.connect(Uri.parse('ws://127.0.0.1:8000/ws/video'));
 
-      try {
-        final response = await http.post(
-          Uri.parse('$ip/start'), 
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(requestBody),
-        );
-
-        if (response.statusCode == 200) {
-          print("Analysis started");
-        } else {
-          setState(() {
-            errorMessage = 'Failed to start analysis. Try again.';
-          });
-          stopAnalysis(); 
-        }
-      } catch (e) {
-        setState(() {
-          errorMessage = 'An error occurred. Please try again.';
-        });
-        stopAnalysis(); 
+    channel?.stream.listen((data) {
+      final frame = img.decodeImage(Uint8List.fromList(data));
+      if (frame != null) {
+        Provider.of<FrameProvider>(context, listen: false).setFrame(frame);
       }
-    }
+    });
   }
 
-  void stopAnalysis() {
-    setState(() {
-      isPlaying = false;
-      errorMessage = '';
-    });
-    print("Analysis stopped");
-  }
+void stopAnalysis() {
+  if (channel != null) {
+    channel?.sink.close();  
+  setState(() {
+    isPlaying = false;  
+  });
+
+}}
+
 
   bool _validateInputs() {
     if (selectedSource == 'url' && urlController.text.isEmpty) {

@@ -141,10 +141,13 @@
     |-- RunnerTests
         |-- RunnerTests.swift
 |-- lib
+    |-- ip.dart
     |-- main.dart
     |-- pages
         |-- login.dart
         |-- signup.dart
+    |-- services
+        |-- auth.dart
     |-- widgets
         |-- alerts_page.dart
         |-- config_panel.dart

@@ -1,22 +1,31 @@
-from fastapi import APIRouter, Request
-from pydantic import BaseModel
-import json
+# backend/routes/analysis.py
+import cv2
+import torch
+from fastapi import APIRouter, WebSocket
+from io import BytesIO
 
 router = APIRouter()
 
-class AnalysisRequest(BaseModel):
-    source: str
-    detectionType: str
-    alertSMS: str = None  # Optional
-    alertEmail: str = None  # Optional
+model = torch.hub.load("ultralytics/yolov5", "yolov5n")
 
-@router.post("/start")
-async def start_analysis(request: Request):
-    data = await request.body()
-    
-    request_data = json.loads(data)
-    
-    print("Received request data:")
-    print(json.dumps(request_data, indent=4))
-    
-    return {"status": "Data received", "data": request_data}
+@router.websocket("/ws/video")
+async def video_analysis(websocket: WebSocket):
+    await websocket.accept()
+    cap = cv2.VideoCapture("/home/filamentai/Downloads/videoplayback.mp4") 
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        with torch.amp.autocast('cuda'):
+            results = model(frame)
+
+        img = results.render()[0]
+
+        _, img_encoded = cv2.imencode(".jpg", img)
+        img_bytes = img_encoded.tobytes()
+
+        await websocket.send_bytes(img_bytes)
+
+    cap.release()
