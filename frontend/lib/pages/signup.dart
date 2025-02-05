@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 
-class SignupPage extends StatelessWidget {
+import '../services/auth.dart';
+
+class SignupPage extends StatefulWidget {
+  const SignupPage({super.key});
+
+  @override
+  _SignupPageState createState() => _SignupPageState();
+}
+
+class _SignupPageState extends State<SignupPage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController companyController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final AuthService authService = AuthService();
 
-  SignupPage({super.key});
+  bool isLoading = false;
+  String errorMessage = '';
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         title: Text('Sign Up', style: TextStyle(color: Colors.white)),
@@ -22,7 +32,7 @@ class SignupPage extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Center(
           child: Container(
-            width: 400, // 85% of the screen width
+            width: 400,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -42,10 +52,13 @@ class SignupPage extends StatelessWidget {
                   Center(
                     child: Text(
                       'Create Account',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.teal[800],
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(
+                            color: Colors.teal[800],
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -111,26 +124,61 @@ class SignupPage extends StatelessWidget {
                     obscureText: true,
                   ),
                   const SizedBox(height: 30),
-                  ElevatedButton(
-                    onPressed: () {
-                      // Handle signup logic
-                    },
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 18), backgroundColor: Colors.teal,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  if (errorMessage.isNotEmpty)
+                    Text(
+                      errorMessage,
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  if (isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else
+                    ElevatedButton(
+                      onPressed: () async {
+                        setState(() {
+                          isLoading = true;
+                          errorMessage = '';
+                        });
+                        try {
+                          final response = await authService.signup(
+                            nameController.text,
+                            companyController.text,
+                            emailController.text,
+                            passwordController.text,
+                          );
+                        if (response['message'] == 'User registered successfully') {
+                            Navigator.pop(context);
+                          } else {
+                            setState(() {
+                              errorMessage = 'Signup failed. Please try again.';
+                            });
+                          }
+                        } catch (e) {
+                          setState(() {
+                            errorMessage = 'Signup failed. Please try again.';
+                          });
+                        } finally {
+                          setState(() {
+                            isLoading = false;
+                          });
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        backgroundColor: Colors.teal,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 5,
                       ),
-                      elevation: 5,
+                      child: const Center(
+                        child: Text('Sign Up', style: TextStyle(fontSize: 18)),
+                      ),
                     ),
-                    child: const Center(
-                      child: Text('Sign Up', style: TextStyle(fontSize: 18)),
-                    ),
-                  ),
                   const SizedBox(height: 20),
                   Center(
                     child: GestureDetector(
                       onTap: () {
-                        // Navigate back to the Login page
                         Navigator.pop(context);
                       },
                       child: Text(

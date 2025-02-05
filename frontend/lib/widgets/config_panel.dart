@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http; 
+import 'dart:convert';
+
+import '../ip.dart';
 import 'detection_type_page.dart';
 import 'alerts_page.dart';
 
@@ -10,31 +14,82 @@ class ConfigPanel extends StatefulWidget {
 }
 
 class _ConfigPanelState extends State<ConfigPanel> {
-  String selectedSource = 'webcam'; // 'webcam' or 'url'
-  String selectedDetection = 'intrusion'; // 'intrusion' or 'PPE'
+  String selectedSource = 'webcam'; 
+  String selectedDetection = 'intrusion'; 
   bool alertSMS = false;
   bool alertEmail = false;
   TextEditingController urlController = TextEditingController();
   TextEditingController emailController = TextEditingController();
   TextEditingController smsController = TextEditingController();
-  bool isPlaying = false; // To track if the analysis is started
+  bool isPlaying = false;
+  String errorMessage = '';
 
-  // Function to handle Start button
-  void startAnalysis() {
-    setState(() {
-      isPlaying = true;
-    });
-    // Add your logic to start video analysis
-    print("Analysis started");
+  void startAnalysis() async {
+    if (_validateInputs()) {
+      setState(() {
+        isPlaying = true;
+        errorMessage = ''; 
+      });
+
+      final requestBody = {
+        'source': selectedSource == 'webcam' ? 'webcam' : urlController.text,
+        'detectionType': selectedDetection,
+        'alertSMS': alertSMS ? smsController.text : '',
+        'alertEmail': alertEmail ? emailController.text : '',
+      };
+
+      try {
+        final response = await http.post(
+          Uri.parse('$ip/start'), 
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(requestBody),
+        );
+
+        if (response.statusCode == 200) {
+          print("Analysis started");
+        } else {
+          setState(() {
+            errorMessage = 'Failed to start analysis. Try again.';
+          });
+          stopAnalysis(); 
+        }
+      } catch (e) {
+        setState(() {
+          errorMessage = 'An error occurred. Please try again.';
+        });
+        stopAnalysis(); 
+      }
+    }
   }
 
-  // Function to handle Stop button
   void stopAnalysis() {
     setState(() {
       isPlaying = false;
+      errorMessage = '';
     });
-    // Add your logic to stop video analysis
     print("Analysis stopped");
+  }
+
+  bool _validateInputs() {
+    if (selectedSource == 'url' && urlController.text.isEmpty) {
+      setState(() {
+        errorMessage = 'Please enter a URL.';
+      });
+      return false;
+    }
+    if (alertEmail && emailController.text.isEmpty) {
+      setState(() {
+        errorMessage = 'Please enter an email for alerts.';
+      });
+      return false;
+    }
+    if (alertSMS && smsController.text.isEmpty) {
+      setState(() {
+        errorMessage = 'Please enter a phone number for SMS alerts.';
+      });
+      return false;
+    }
+    return true;
   }
 
   @override
@@ -45,11 +100,11 @@ class _ConfigPanelState extends State<ConfigPanel> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: Colors.black26,
             blurRadius: 10,
-            offset: const Offset(0, 6),
+            offset: Offset(0, 6),
           ),
         ],
       ),
@@ -106,6 +161,12 @@ class _ConfigPanelState extends State<ConfigPanel> {
             smsController: smsController,
             emailController: emailController,
           ),
+          const SizedBox(height: 20),
+          if (errorMessage.isNotEmpty)
+            Text(
+              errorMessage,
+              style: const TextStyle(color: Colors.red),
+            ),
           const SizedBox(height: 20),
           Row(
             children: [
